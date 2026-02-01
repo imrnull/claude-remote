@@ -41,11 +41,9 @@ run_claude_new_session() {
     local claude_output
     local exit_code=0
 
-    export PATH="$HOME/.local/bin:$PATH"
-
     # Build the command
     local cmd=(
-        claude
+        /home/claude/.local/bin/claude
         -p
         --session-id "$session_id"
         --output-format json
