@@ -88,7 +88,7 @@ resume_claude_session() {
 
     # Build the command
     local cmd=(
-        claude
+        /home/claude/.local/bin/claude
         -p
         --resume "$session_id"
         --output-format json
