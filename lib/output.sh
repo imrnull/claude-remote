@@ -8,53 +8,76 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 [[ -z "${EXIT_SUCCESS:-}" ]] && source "${SCRIPT_DIR}/common.sh"
 
+# Check if Claude response contains AWAITING_USER_INPUT marker
+# Arguments: claude_response_json
+check_awaiting_input() {
+    local claude_response="$1"
+
+    # Extract the result text from Claude's JSON response
+    local result_text
+    result_text=$(echo "$claude_response" | jq -r '.result // empty' 2>/dev/null)
+
+    # Check for the marker
+    if [[ "$result_text" == *"AWAITING_USER_INPUT: true"* ]]; then
+        echo "true"
+    else
+        echo "false"
+    fi
+}
+
 # Output success JSON
-# Arguments: session_id, repo_path, branch_name, claude_response
+# Arguments: chat_id, branch_name, working_dir, claude_response
 output_success() {
-    local session_id="$1"
-    local repo_path="$2"
-    local branch_name="$3"
+    local chat_id="$1"
+    local branch_name="$2"
+    local working_dir="$3"
     local claude_response="$4"
+
+    # Check if awaiting user input
+    local awaiting_input
+    awaiting_input=$(check_awaiting_input "$claude_response")
 
     # Use jq to properly escape and format JSON
     jq -n \
         --arg status "success" \
-        --arg session_id "$session_id" \
-        --arg repo_path "$repo_path" \
+        --arg chat_id "$chat_id" \
         --arg branch_name "$branch_name" \
+        --arg working_dir "$working_dir" \
+        --argjson awaiting_user_input "$awaiting_input" \
         --argjson claude_response "$claude_response" \
         '{
             status: $status,
-            session_id: $session_id,
-            repo_path: $repo_path,
+            chat_id: $chat_id,
             branch_name: $branch_name,
+            working_dir: $working_dir,
+            awaiting_user_input: $awaiting_user_input,
             claude_response: $claude_response
         }'
 }
 
 # Output error JSON
-# Arguments: error_code, error_message, [partial_data]
+# Arguments: error_code, error_message, [chat_id], [branch_name], [working_dir]
 output_error() {
     local error_code="$1"
     local error_message="$2"
-    local session_id="${3:-}"
-    local repo_path="${4:-}"
-    local branch_name="${5:-}"
+    local chat_id="${3:-}"
+    local branch_name="${4:-}"
+    local working_dir="${5:-}"
 
     jq -n \
         --arg status "error" \
         --arg error_code "$error_code" \
         --arg error_message "$error_message" \
-        --arg session_id "$session_id" \
-        --arg repo_path "$repo_path" \
+        --arg chat_id "$chat_id" \
         --arg branch_name "$branch_name" \
+        --arg working_dir "$working_dir" \
         '{
             status: $status,
             error_code: ($error_code | tonumber),
             error_message: $error_message,
-            session_id: (if $session_id == "" then null else $session_id end),
-            repo_path: (if $repo_path == "" then null else $repo_path end),
-            branch_name: (if $branch_name == "" then null else $branch_name end)
+            chat_id: (if $chat_id == "" then null else $chat_id end),
+            branch_name: (if $branch_name == "" then null else $branch_name end),
+            working_dir: (if $working_dir == "" then null else $working_dir end)
         }'
 }
 

@@ -22,3 +22,12 @@ IMPORTANT INSTRUCTIONS FOR ASKING QUESTIONS:
 5. When the user provides answers and you have enough information to proceed, you may begin implementation without the marker.
 
 6. Be thorough in your exploration before asking questions - understand the codebase structure, technologies used, and existing patterns.
+
+COMMIT MESSAGE FORMAT:
+
+When creating commits, prefix all commit messages with: {{COMMIT_PREFIX}}
+
+Example: If the prefix is "BP25-123 - ", your commit message should be:
+"BP25-123 - Add user authentication feature"
+
+If no prefix is provided, use standard commit message format without a prefix.
