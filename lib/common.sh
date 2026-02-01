@@ -110,10 +110,7 @@ parse_args() {
     validate_ssh_url "$REPO_URL" || return $EXIT_INVALID_PARAMS
     validate_uuid "$CHAT_ID" || return $EXIT_INVALID_PARAMS
     validate_boolean "CONTINUATION" "$CONTINUATION" || return $EXIT_INVALID_PARAMS
-
-    if [[ "$CONTINUATION" == "true" ]]; then
-        validate_required "USER_MESSAGE" "$USER_MESSAGE" || return $EXIT_INVALID_PARAMS
-    fi
+    validate_required "USER_MESSAGE" "$USER_MESSAGE" || return $EXIT_INVALID_PARAMS
 
     # Export for use by other scripts
     export REPO_URL CHAT_ID CONTINUATION WORK_BASE_DIR USER_MESSAGE

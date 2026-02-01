@@ -2,15 +2,15 @@
 # benji-init.sh - Initialize or continue a Benji coding session
 #
 # Usage:
-#   New session:      benji-init.sh REPO_URL CHAT_ID false WORK_BASE_DIR
-#   Continuation:     benji-init.sh REPO_URL CHAT_ID true WORK_BASE_DIR "user message"
+#   New session:      benji-init.sh REPO_URL CHAT_ID false WORK_BASE_DIR "task description"
+#   Continuation:     benji-init.sh REPO_URL CHAT_ID true WORK_BASE_DIR "user response"
 #
 # Arguments:
 #   REPO_URL      - SSH git URL (e.g., git@github.com:org/repo.git)
 #   CHAT_ID       - UUID for the Claude session
 #   CONTINUATION  - "true" or "false"
 #   WORK_BASE_DIR - Base directory for cloning repositories
-#   USER_MESSAGE  - Message to send (required for continuation)
+#   USER_MESSAGE  - Task description (new session) or response (continuation) - always required
 #
 # Exit codes:
 #   0 - Success
@@ -72,8 +72,11 @@ main() {
             exit $EXIT_GIT_FAILED
         fi
 
-        # Run Claude with initial prompt
-        local initial_prompt="Explore the repository structure and ask clarifying questions about the task."
+        # Run Claude with task description
+        local initial_prompt
+        initial_prompt="Task: ${USER_MESSAGE}
+
+Explore the repository and ask clarifying questions."
         local system_prompt_file="${CONFIG_DIR}/prompts/benji-init.txt"
 
         if ! claude_output=$(run_claude_new_session "$CHAT_ID" "$repo_path" "$initial_prompt" "$system_prompt_file"); then

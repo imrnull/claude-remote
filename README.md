@@ -5,14 +5,15 @@ Shell scripts for orchestrating Claude Code sessions remotely via n8n workflows.
 ## Quick Start
 
 ```bash
-# New session
+# New session with task description
 ./bin/benji-init.sh \
   "git@github.com:org/repo.git" \
   "550e8400-e29b-41d4-a716-446655440000" \
   false \
-  "/path/to/work/dir"
+  "/path/to/work/dir" \
+  "Add a dark mode toggle to the settings page"
 
-# Continue session
+# Continue session with user response
 ./bin/benji-init.sh \
   "git@github.com:org/repo.git" \
   "550e8400-e29b-41d4-a716-446655440000" \
@@ -29,7 +30,7 @@ Shell scripts for orchestrating Claude Code sessions remotely via n8n workflows.
 | $2 | CHAT_ID | Yes | UUID - becomes Claude session ID |
 | $3 | CONTINUATION | Yes | `true` or `false` |
 | $4 | WORK_BASE_DIR | Yes | Base directory for cloning |
-| $5 | USER_MESSAGE | For continuation | Message to send to Claude |
+| $5 | USER_MESSAGE | Yes | Task description (new) or response (continuation) |
 
 ## Output
 
@@ -74,10 +75,10 @@ All scripts output JSON to stdout. Logs go to stderr.
 
 ### New Session (CONTINUATION=false)
 
-1. Validate inputs
+1. Validate inputs (including USER_MESSAGE as task description)
 2. Clone repo to `WORK_BASE_DIR/REPO_NAME`
 3. Create branch: `benji/YYYYMMDD-HHMMSS-{first8charsOfUUID}`
-4. Run Claude with system prompt instructing text-only questions
+4. Run Claude with task description, instructing it to explore and ask questions
 5. Output JSON result
 
 ### Continuation (CONTINUATION=true)
