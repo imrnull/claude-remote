@@ -26,6 +26,7 @@ Shell scripts for n8n to orchestrate Claude Code sessions remotely.
 | $4 | BRANCH_NAME | Branch identifier (e.g., BP25-123 or add-search-filter) |
 | $5 | COMMIT_PREFIX | Prefix for commits (e.g., "BP25-123 - ") or empty |
 | $6 | PROMPT | Task description or user response |
+| $7 | SOURCE_BRANCH | Branch to create feature from (default: main) |
 
 ## Adding New Scripts
 
@@ -41,7 +42,7 @@ Shell scripts for n8n to orchestrate Claude Code sessions remotely.
 # Test validation (should error with missing params)
 ./bin/benji-init.sh
 
-# Test new session
+# Test new session (uses default source branch: main)
 DEBUG=true ./bin/benji-init.sh \
   "550e8400-e29b-41d4-a716-446655440000" \
   "git@github.com:test/repo.git" \
@@ -49,6 +50,16 @@ DEBUG=true ./bin/benji-init.sh \
   "BP25-123" \
   "BP25-123 - " \
   "Add user authentication feature"
+
+# Test with custom source branch (e.g., develop)
+DEBUG=true ./bin/benji-init.sh \
+  "550e8400-e29b-41d4-a716-446655440000" \
+  "git@github.com:test/repo.git" \
+  "/tmp" \
+  "BP25-456" \
+  "BP25-456 - " \
+  "Add user authentication feature" \
+  "develop"
 
 # Test continuation (run again with same BRANCH_NAME after initial run)
 DEBUG=true ./bin/benji-init.sh \

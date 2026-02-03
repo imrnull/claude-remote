@@ -32,6 +32,20 @@ git_clone_repo() {
     log_info "Repository cloned to: $target_dir"
 }
 
+# Checkout an existing branch
+# Arguments: repo_dir, branch_name
+git_checkout_branch() {
+    local repo_dir="$1"
+    local branch_name="$2"
+
+    log_info "Checking out branch: $branch_name"
+
+    if ! git -C "$repo_dir" checkout "$branch_name" 2>&2; then
+        log_debug "Failed to checkout branch: $branch_name"
+        return $EXIT_GIT_FAILED
+    fi
+}
+
 # Create and checkout a new branch
 # Arguments: repo_dir, branch_name
 git_create_branch() {

@@ -61,7 +61,7 @@ validate_branch_name() {
 
 # Parse arguments for benji-init
 # Usage: parse_args "$@"
-# Sets: CHAT_ID, REPO_URL, WORK_BASE_DIR, BRANCH_NAME, COMMIT_PREFIX, PROMPT
+# Sets: CHAT_ID, REPO_URL, WORK_BASE_DIR, BRANCH_NAME, COMMIT_PREFIX, PROMPT, SOURCE_BRANCH
 # Returns: exit code and sets PARSE_ERROR with message on failure
 parse_args() {
     CHAT_ID="${1:-}"
@@ -70,6 +70,7 @@ parse_args() {
     BRANCH_NAME="${4:-}"
     COMMIT_PREFIX="${5:-}"
     PROMPT="${6:-}"
+    SOURCE_BRANCH="${7:-main}"
     PARSE_ERROR=""
 
     if ! validate_required "CHAT_ID" "$CHAT_ID"; then
@@ -108,5 +109,5 @@ parse_args() {
     fi
 
     # Export for use by other scripts
-    export CHAT_ID REPO_URL WORK_BASE_DIR BRANCH_NAME COMMIT_PREFIX PROMPT
+    export CHAT_ID REPO_URL WORK_BASE_DIR BRANCH_NAME COMMIT_PREFIX PROMPT SOURCE_BRANCH
 }

@@ -43,7 +43,7 @@ run_claude_new_session() {
 
     # Build the command
     local cmd=(
-        /home/claude/.local/bin/claude
+        claude
         -p
         --session-id "$session_id"
         --output-format json
@@ -88,7 +88,7 @@ resume_claude_session() {
 
     # Build the command
     local cmd=(
-        /home/claude/.local/bin/claude
+        claude
         -p
         --resume "$session_id"
         --output-format json
