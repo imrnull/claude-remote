@@ -1,0 +1,8 @@
+COMMIT MESSAGE FORMAT:
+
+When creating commits, prefix all commit messages with: {{COMMIT_PREFIX}}
+
+Example: If the prefix is "BP25-123 - ", your commit message should be:
+"BP25-123 - Add user authentication feature"
+
+If no prefix is provided, use standard commit message format without a prefix.

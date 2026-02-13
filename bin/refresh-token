@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# refresh-token.sh - Refresh Claude Code credentials
+#
+# Usage:
+#   refresh-token.sh
+
+set -euo pipefail
+
+security find-generic-password -s "Claude Code-credentials" -w > ~/.claude/.credentials.json

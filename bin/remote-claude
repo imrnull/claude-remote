@@ -93,6 +93,9 @@ main() {
         # New session flow - create worktree
         log_info "Starting new session, creating worktree: $working_dir"
 
+        # Pull latest changes on main repo before creating worktree
+        git_pull "$MAIN_REPO_DIR"
+
         # Create worktree with feature branch
         if ! git_create_worktree "$MAIN_REPO_DIR" "$working_dir" "$branch_name" "$SOURCE_BRANCH"; then
             output_error "$EXIT_GIT_FAILED" "Failed to create worktree" "$CHAT_ID" "$branch_name" "$working_dir"

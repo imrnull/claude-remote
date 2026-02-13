@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# setup-stream - Create a git worktree and launch interactive Claude session
+#
+# Usage:
+#   setup-stream REPO_RELATIVE_PATH BRANCH_NAME [SOURCE_BRANCH]
+#
+# Arguments:
+#   REPO_RELATIVE_PATH - Path relative to ROOT_DIR (e.g., Benji/react-app)
+#   BRANCH_NAME        - Branch identifier (e.g., BP25-123)
+#   SOURCE_BRANCH      - Branch to create feature from (default from .env)
+#
+# Exit codes:
+#   0 - Success
+#   1 - Invalid parameters
+#   2 - Git operation failed
+#   3 - Claude execution failed
+#   4 - File/directory not found
+
+set -euo pipefail
+
+# Ensure claude CLI is in PATH
+export PATH="$HOME/.local/bin:$PATH"
+export CLAUDE_CONFIG_DIR="$HOME/.claude"
+
+# Get script directory and load libraries
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/../lib"
+CONFIG_DIR="${SCRIPT_DIR}/../config"
+
+source "${LIB_DIR}/common.sh"
+source "${LIB_DIR}/git-operations.sh"
+source "${LIB_DIR}/claude-session.sh"
+source "${LIB_DIR}/output.sh"
+
+# Parse arguments for setup-stream
+parse_setup_args() {
+    REPO_RELATIVE_PATH="${1:-}"
+    BRANCH_NAME="${2:-}"
+    SOURCE_BRANCH="${3:-${DEFAULT_SOURCE_BRANCH:-main}}"
+    PARSE_ERROR=""
+
+    if ! validate_required "REPO_RELATIVE_PATH" "$REPO_RELATIVE_PATH"; then
+        PARSE_ERROR="Missing required parameter: REPO_RELATIVE_PATH"
+        return $EXIT_INVALID_PARAMS
+    fi
+    if ! validate_required "BRANCH_NAME" "$BRANCH_NAME"; then
+        PARSE_ERROR="Missing required parameter: BRANCH_NAME"
+        return $EXIT_INVALID_PARAMS
+    fi
+
+    if ! validate_repo_relative_path "$REPO_RELATIVE_PATH"; then
+        PARSE_ERROR="Invalid REPO_RELATIVE_PATH: must be in 'org/repo' format (e.g., Benji/react-app)"
+        return $EXIT_INVALID_PARAMS
+    fi
+    if ! validate_branch_name "$BRANCH_NAME"; then
+        PARSE_ERROR="Invalid branch name: BRANCH_NAME (use alphanumeric, hyphens, underscores only)"
+        return $EXIT_INVALID_PARAMS
+    fi
+
+    derive_repo_paths "$REPO_RELATIVE_PATH"
+    WORKTREE_DIR=$(derive_worktree_path "$REPO_RELATIVE_PATH" "$BRANCH_NAME")
+
+    if [[ ! -d "$MAIN_REPO_DIR" ]]; then
+        PARSE_ERROR="Main repository not found: $MAIN_REPO_DIR"
+        return $EXIT_NOT_FOUND
+    fi
+}
+
+main() {
+    local branch_name=""
+
+    if ! load_env; then
+        output_error "$EXIT_NOT_FOUND" "${PARSE_ERROR:-.env configuration error}"
+        exit $EXIT_NOT_FOUND
+    fi
+
+    if ! parse_setup_args "$@"; then
+        output_error "$EXIT_INVALID_PARAMS" "${PARSE_ERROR:-Invalid parameters}"
+        exit $EXIT_INVALID_PARAMS
+    fi
+
+    branch_name=$(generate_feature_branch_name "$BRANCH_NAME")
+
+    if [[ -d "$WORKTREE_DIR" ]]; then
+        output_error "$EXIT_INVALID_PARAMS" "Worktree already exists: $WORKTREE_DIR" "" "$branch_name" "$WORKTREE_DIR"
+        exit $EXIT_INVALID_PARAMS
+    fi
+
+    # Pull latest changes on main repo before creating worktree
+    git_pull "$MAIN_REPO_DIR"
+
+    if ! git_create_worktree "$MAIN_REPO_DIR" "$WORKTREE_DIR" "$branch_name" "$SOURCE_BRANCH"; then
+        output_error "$EXIT_GIT_FAILED" "Failed to create worktree" "" "$branch_name" "$WORKTREE_DIR"
+        exit $EXIT_GIT_FAILED
+    fi
+
+    # Generate a session ID and save it for later resume
+    local session_id
+    session_id=$(uuidgen | tr '[:upper:]' '[:lower:]')
+    echo "$session_id" > "${WORKTREE_DIR}/.CLAUDE_CHAT_ID"
+
+    log_info "Worktree ready: $WORKTREE_DIR"
+    log_info "Session ID: $session_id"
+
+    # Launch interactive Claude session
+    local system_prompt_file="${CONFIG_DIR}/prompts/interactive.txt"
+    local commit_prefix
+    commit_prefix=$(derive_commit_prefix "$BRANCH_NAME")
+
+    local cmd=(claude --session-id "$session_id")
+
+    if [[ -f "$system_prompt_file" ]]; then
+        local system_prompt
+        system_prompt=$(build_system_prompt "$system_prompt_file" "$commit_prefix")
+        cmd+=(--append-system-prompt "$system_prompt")
+    fi
+
+    cd "$WORKTREE_DIR" && exec "${cmd[@]}"
+}
+
+main "$@"
