@@ -110,23 +110,16 @@ git_merge_branch() {
         return $EXIT_GIT_FAILED
     fi
 
-    # Checkout target branch in the temp worktree
-    if ! git -C "$tmp_merge_dir" checkout -B "$target_branch" "origin/${target_branch}" 2>&2; then
-        log_debug "Failed to checkout $target_branch"
-        git -C "$main_repo_dir" worktree remove "$tmp_merge_dir" --force 2>/dev/null
-        return $EXIT_GIT_FAILED
-    fi
-
-    # Merge feature branch
-    if ! git -C "$tmp_merge_dir" merge "$source_branch" --no-edit 2>&2; then
+    # Merge feature branch on detached HEAD (avoids "branch already checked out" error)
+    if ! git -C "$tmp_merge_dir" merge "origin/$source_branch" --no-edit 2>&2; then
         log_debug "Merge conflict or failure"
         git -C "$tmp_merge_dir" merge --abort 2>/dev/null
         git -C "$main_repo_dir" worktree remove "$tmp_merge_dir" --force 2>/dev/null
         return $EXIT_GIT_FAILED
     fi
 
-    # Push merged target branch
-    if ! git -C "$tmp_merge_dir" push origin "$target_branch" 2>&2; then
+    # Push merged result to target branch using refspec
+    if ! git -C "$tmp_merge_dir" push origin "HEAD:${target_branch}" 2>&2; then
         log_debug "Failed to push merged $target_branch"
         git -C "$main_repo_dir" worktree remove "$tmp_merge_dir" --force 2>/dev/null
         return $EXIT_GIT_FAILED
