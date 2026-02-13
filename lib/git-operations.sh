@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# git-operations.sh - Git clone and branch operations
+# git-operations.sh - Git worktree and branch operations
 
 set -euo pipefail
 
@@ -15,51 +15,55 @@ generate_feature_branch_name() {
     echo "feature/${branch_name}"
 }
 
-# Clone a repository
-# Arguments: repo_url, target_dir
-git_clone_repo() {
-    local repo_url="$1"
-    local target_dir="$2"
+# Create a git worktree from the main repository
+# Arguments: main_repo_dir, worktree_dir, feature_branch_name, source_branch
+git_create_worktree() {
+    local main_repo_dir="$1"
+    local worktree_dir="$2"
+    local feature_branch_name="$3"
+    local source_branch="$4"
 
-    log_info "Cloning repository: $repo_url"
-    log_debug "Target directory: $target_dir"
+    log_info "Creating worktree: $worktree_dir"
+    log_debug "Main repo: $main_repo_dir"
+    log_debug "Feature branch: $feature_branch_name from $source_branch"
 
-    if ! git clone "$repo_url" "$target_dir" 2>&2; then
-        log_debug "Failed to clone repository"
+    # Prune stale worktree entries
+    git -C "$main_repo_dir" worktree prune 2>&2
+
+    # Fetch latest source branch
+    if ! git -C "$main_repo_dir" fetch origin "$source_branch" 2>&2; then
+        log_debug "Warning: could not fetch origin/$source_branch, proceeding with local state"
+    fi
+
+    # Ensure parent directory exists
+    local parent_dir
+    parent_dir="$(dirname "$worktree_dir")"
+    if [[ ! -d "$parent_dir" ]]; then
+        log_info "Creating agents directory: $parent_dir"
+        mkdir -p "$parent_dir"
+    fi
+
+    # Create worktree with new branch from source
+    if ! git -C "$main_repo_dir" worktree add "$worktree_dir" -b "$feature_branch_name" "origin/${source_branch}" 2>&2; then
+        log_debug "Failed to create worktree"
         return $EXIT_GIT_FAILED
     fi
 
-    log_info "Repository cloned to: $target_dir"
+    log_info "Worktree created at: $worktree_dir (branch: $feature_branch_name)"
 }
 
-# Checkout an existing branch
-# Arguments: repo_dir, branch_name
-git_checkout_branch() {
-    local repo_dir="$1"
-    local branch_name="$2"
+# Remove a git worktree
+# Arguments: main_repo_dir, worktree_dir
+git_remove_worktree() {
+    local main_repo_dir="$1"
+    local worktree_dir="$2"
 
-    log_info "Checking out branch: $branch_name"
+    log_info "Removing worktree: $worktree_dir"
 
-    if ! git -C "$repo_dir" checkout "$branch_name" 2>&2; then
-        log_debug "Failed to checkout branch: $branch_name"
+    if ! git -C "$main_repo_dir" worktree remove "$worktree_dir" --force 2>&2; then
+        log_debug "Failed to remove worktree"
         return $EXIT_GIT_FAILED
     fi
-}
-
-# Create and checkout a new branch
-# Arguments: repo_dir, branch_name
-git_create_branch() {
-    local repo_dir="$1"
-    local branch_name="$2"
-
-    log_info "Creating branch: $branch_name"
-
-    if ! git -C "$repo_dir" checkout -b "$branch_name" 2>&2; then
-        log_debug "Failed to create branch: $branch_name"
-        return $EXIT_GIT_FAILED
-    fi
-
-    log_info "Checked out branch: $branch_name"
 }
 
 # Get the current branch name
