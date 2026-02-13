@@ -66,6 +66,78 @@ git_remove_worktree() {
     fi
 }
 
+# Push a branch to remote
+# Arguments: repo_dir, branch_name
+git_push_branch() {
+    local repo_dir="$1"
+    local branch_name="$2"
+
+    log_info "Pushing branch: $branch_name"
+
+    if ! git -C "$repo_dir" push origin "$branch_name" 2>&2; then
+        log_debug "Failed to push branch: $branch_name"
+        return $EXIT_GIT_FAILED
+    fi
+}
+
+# Merge a source branch into a target branch (from main repo, not worktree)
+# Arguments: main_repo_dir, source_branch, target_branch
+git_merge_branch() {
+    local main_repo_dir="$1"
+    local source_branch="$2"
+    local target_branch="$3"
+
+    log_info "Merging $source_branch into $target_branch"
+
+    # Fetch latest
+    if ! git -C "$main_repo_dir" fetch origin "$target_branch" 2>&2; then
+        log_debug "Failed to fetch $target_branch"
+        return $EXIT_GIT_FAILED
+    fi
+
+    # Update local target branch to match remote (without checkout)
+    git -C "$main_repo_dir" fetch origin "$source_branch" 2>&2
+
+    # Use a temporary worktree for the merge to avoid disturbing main repo checkout
+    local tmp_merge_dir
+    tmp_merge_dir=$(mktemp -d)
+
+    log_debug "Using temp dir for merge: $tmp_merge_dir"
+
+    if ! git -C "$main_repo_dir" worktree add "$tmp_merge_dir" "origin/${target_branch}" --detach 2>&2; then
+        log_debug "Failed to create temp worktree for merge"
+        rm -rf "$tmp_merge_dir"
+        return $EXIT_GIT_FAILED
+    fi
+
+    # Checkout target branch in the temp worktree
+    if ! git -C "$tmp_merge_dir" checkout -B "$target_branch" "origin/${target_branch}" 2>&2; then
+        log_debug "Failed to checkout $target_branch"
+        git -C "$main_repo_dir" worktree remove "$tmp_merge_dir" --force 2>/dev/null
+        return $EXIT_GIT_FAILED
+    fi
+
+    # Merge feature branch
+    if ! git -C "$tmp_merge_dir" merge "$source_branch" --no-edit 2>&2; then
+        log_debug "Merge conflict or failure"
+        git -C "$tmp_merge_dir" merge --abort 2>/dev/null
+        git -C "$main_repo_dir" worktree remove "$tmp_merge_dir" --force 2>/dev/null
+        return $EXIT_GIT_FAILED
+    fi
+
+    # Push merged target branch
+    if ! git -C "$tmp_merge_dir" push origin "$target_branch" 2>&2; then
+        log_debug "Failed to push merged $target_branch"
+        git -C "$main_repo_dir" worktree remove "$tmp_merge_dir" --force 2>/dev/null
+        return $EXIT_GIT_FAILED
+    fi
+
+    # Clean up temp worktree
+    git -C "$main_repo_dir" worktree remove "$tmp_merge_dir" --force 2>/dev/null
+
+    log_info "Successfully merged $source_branch into $target_branch"
+}
+
 # Get the current branch name
 git_current_branch() {
     local repo_dir="$1"
