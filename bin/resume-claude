@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# resume - cd into a worktree and launch Claude interactively to resume a session
+#
+# Usage:
+#   resume REPO_RELATIVE_PATH BRANCH_NAME
+#
+# Example:
+#   resume Benji/react-app BP25-123
+#
+# This will:
+#   1. cd into ROOT_DIR/{org}/agents/{repo-name}/{branch-name}
+#   2. Read the saved chat ID from .CLAUDE_CHAT_ID
+#   3. Launch Claude with --resume in interactive mode
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/../lib"
+
+source "${LIB_DIR}/common.sh"
+
+if ! load_env; then
+    echo "Error: ${PARSE_ERROR:-.env configuration error}" >&2
+    exit 1
+fi
+
+REPO_RELATIVE_PATH="${1:-}"
+BRANCH_NAME="${2:-}"
+
+if [[ -z "$REPO_RELATIVE_PATH" || -z "$BRANCH_NAME" ]]; then
+    echo "Usage: resume REPO_RELATIVE_PATH BRANCH_NAME" >&2
+    echo "Example: resume Benji/react-app BP25-123" >&2
+    exit 1
+fi
+
+WORKTREE_DIR=$(derive_worktree_path "$REPO_RELATIVE_PATH" "$BRANCH_NAME")
+
+if [[ ! -d "$WORKTREE_DIR" ]]; then
+    echo "Error: Worktree not found: $WORKTREE_DIR" >&2
+    exit 1
+fi
+
+CHAT_ID_FILE="${WORKTREE_DIR}/.CLAUDE_CHAT_ID"
+RESUME_FLAG=()
+
+if [[ -f "$CHAT_ID_FILE" ]]; then
+    CHAT_ID=$(cat "$CHAT_ID_FILE")
+    RESUME_FLAG=(--resume "$CHAT_ID")
+    echo "Resuming session: $CHAT_ID"
+else
+    echo "No saved session found, starting fresh in worktree"
+fi
+
+cd "$WORKTREE_DIR"
+exec claude "${RESUME_FLAG[@]}"
